@@ -33,7 +33,7 @@ const Planner = () => {
   };
 
   return (
-    <div className="flex text-white w-screen h-[calc(100vh-64px)] pt-[64px] overflow-y-auto bg-gray-100">
+    <div className="flex text-black w-screen h-[calc(100vh-64px)] pt-[64px] overflow-y-auto bg-gray-100">
       {/* Sidebar */}
       <motion.div
         className="w-[224px] bg-white text-black p-[16px] flex flex-col space-y-4 sticky top-[64px] shadow-lg"
@@ -49,6 +49,22 @@ const Planner = () => {
         >
           <BookOpen className="text-blue-500" />
           <span>Skill Scheduler</span>
+              {/* {["To-do list", "", "revision", "improvements"].map((tab) => (
+            <button
+              key={tab}
+              className={`w-full flex items-center p-3 rounded-lg text-left transition-all duration-300 ${
+                tabState === tab
+                  ? "bg-black text-white shadow-lg"
+                  : "hover:bg-gray-200 text-gray-700 hover:scale-105"
+              }`}
+              onClick={() => setTabState(tab)}
+            >
+              {tab === "notes" && "📝 Notes"}
+              {tab === "yesterday" && "🔄 Yesterday"}
+              {tab === "revision" && "📖 Revision"}
+              {tab === "improvements" && "🚀 Improvements"}
+            </button>
+          ))} */}
         </motion.h2>
         <div className="space-y-3">
           <motion.button
