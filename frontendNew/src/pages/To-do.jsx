@@ -1,20 +1,68 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { PlusCircle, Trash2, CheckSquare } from "lucide-react";
 
 const TodoComponents = () => {
   const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState("");
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [errorMessage, setErrorMessage] = useState("");
+  const retryRef = useRef(0);
 
   useEffect(() => {
-    fetch("https://skill-scheduler.onrender.com/api/planner/pending-work")
-      .then((res) => res.json())
-      .then((data) => setTasks(data))
-      .catch((err) => console.error("Error fetching tasks:", err));
+    const fetchTasks = async () => {
+      if (!navigator.onLine) {
+        setIsOffline(true);
+        setErrorMessage("");
+        return;
+      }
+      try {
+        const res = await fetch("https://skill-scheduler.onrender.com/api/planner/pending-work");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setTasks(data);
+        setErrorMessage("");
+        retryRef.current = 0;
+      } catch (err) {
+        console.error("Error fetching tasks:", err);
+        setErrorMessage("Server unreachable. Retrying...");
+        if (retryRef.current < 3) {
+          const delay = Math.pow(2, retryRef.current) * 1000;
+          retryRef.current += 1;
+          setTimeout(fetchTasks, delay);
+        } else {
+          setErrorMessage("Failed to load tasks. Please try again.");
+        }
+      }
+    };
+
+    const handleOnline = () => {
+      setIsOffline(false);
+      retryRef.current = 0;
+      fetchTasks();
+    };
+    const handleOffline = () => {
+      setIsOffline(true);
+      setErrorMessage("");
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    fetchTasks();
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
 
   const addTask = () => {
     if (!newTask.trim()) return;
+    if (!navigator.onLine) {
+      console.warn("Offline: cannot add task");
+      return;
+    }
 
     fetch("https://skill-scheduler.onrender.com/api/planner/to-do", {
       method: "POST",
@@ -30,6 +78,10 @@ const TodoComponents = () => {
   };
 
   const deleteTask = (id) => {
+    if (!navigator.onLine) {
+      console.warn("Offline: cannot delete task");
+      return;
+    }
     fetch(`https://skill-scheduler.onrender.com/api/planner/to-do/${id}`, {
       method: "DELETE",
     })
@@ -63,7 +115,24 @@ const TodoComponents = () => {
         <CheckSquare className="text-blue-500" />
         <span>To-Do List</span>
       </motion.h2>
-
+      {isOffline && (
+        <motion.div
+          className="mb-4 rounded border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-800"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          You are offline. Some actions are unavailable.
+        </motion.div>
+      )}
+      {!isOffline && errorMessage && (
+        <motion.div
+          className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          {errorMessage}
+        </motion.div>
+      )}
       <div className="flex items-center space-x-3 mb-5">
         <input
           type="text"

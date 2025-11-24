@@ -9,12 +9,28 @@ const NoteList = () => {
     const [notes, setNotes] = useState([]);
     const [newNote, setNewNote] = useState({ title: "", content: "", tags: "" });
     const [editingNote, setEditingNote] = useState(null);
+    const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
     useEffect(() => {
+        const handleOnline = () => {
+            setIsOffline(false);
+            fetchNotes();
+        };
+        const handleOffline = () => setIsOffline(true);
+        window.addEventListener("online", handleOnline);
+        window.addEventListener("offline", handleOffline);
         fetchNotes();
+        return () => {
+            window.removeEventListener("online", handleOnline);
+            window.removeEventListener("offline", handleOffline);
+        };
     }, []);
 
     const fetchNotes = async () => {
+        if (!navigator.onLine) {
+            setIsOffline(true);
+            return;
+        }
         try {
             const response = await axios.get(API_URL);
             console.log("Fetched notes:", response.data);
@@ -28,6 +44,11 @@ const NoteList = () => {
     const addNote = async () => {
         if (!newNote.title || !newNote.content) {
             toast.error("Title and content are required!");
+            return;
+        }
+        if (!navigator.onLine) {
+            setIsOffline(true);
+            toast.error("You are offline. Cannot add note.");
             return;
         }
         try {
@@ -50,6 +71,11 @@ const NoteList = () => {
             toast.error("Title and content are required!");
             return;
         }
+        if (!navigator.onLine) {
+            setIsOffline(true);
+            toast.error("You are offline. Cannot update note.");
+            return;
+        }
         try {
             await axios.put(`${API_URL}/${editingNote._id}`, {
                 ...editingNote,
@@ -66,6 +92,11 @@ const NoteList = () => {
     };
 
     const deleteNote = async (id) => {
+        if (!navigator.onLine) {
+            setIsOffline(true);
+            toast.error("You are offline. Cannot delete note.");
+            return;
+        }
         try {
             await axios.delete(`${API_URL}/${id}`);
             await fetchNotes();
@@ -83,7 +114,11 @@ const NoteList = () => {
                 <div className="flex justify-between items-center mb-6 px-4 animate-slide-up">
                     <h1 className="text-2xl font-bold text-gray-900">My Notes</h1>
                 </div>
-
+                {isOffline && (
+                    <div className="mx-4 mb-4 rounded border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+                        You are offline. Some actions are unavailable.
+                    </div>
+                )}
                 <div className="bg-white p-4 rounded-lg shadow-md mx-4 mb-6 transform transition-all hover:shadow-lg animate-fade-in">
                     <h2 className="text-lg font-semibold mb-2">Add New Note</h2>
                     <input

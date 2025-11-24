@@ -45,14 +45,18 @@ router.get('/dashboard', async (req, res) => {
 
     const userId = req.user?.id || "anonymous"; // Support authenticated and anonymous users
 
-    const [totalTasks, completedTasks, notesOverview, progressData] = await Promise.all([
+    const [totalTasks, completedTasks, notesOverview, progressDataRaw] = await Promise.all([
       plannerCollection.countDocuments({ userId }),
       plannerCollection.countDocuments({ userId, status: "Completed" }),
       notesCollection
         .find({ userId }, { projection: { id: 1, title: 1, content: 1, createdAt: 1 } })
         .toArray(),
-      dashboardCollection.findOne({ type: "progress", userId }) || {},
+      dashboardCollection
+        .findOne({ type: "progress", userId })
+        .then((doc) => doc || {}),
     ]);
+
+    const progressData = progressDataRaw || {};
 
     const taskCompletionPercentage = totalTasks > 0
       ? ((completedTasks / totalTasks) * 100).toFixed(2)

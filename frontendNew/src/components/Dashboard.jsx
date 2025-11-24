@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import ClipLoader from "react-spinners/ClipLoader";
 
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
+
 const Dashboard = () => {
   const [progress, setProgress] = useState(0);
   const [studyHours, setStudyHours] = useState(0);
@@ -15,20 +17,34 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [progressRes, dashboardRes, examsRes, quizPerformanceRes] = await Promise.all([
-        fetch("https://skill-scheduler.onrender.com/api/dashboard/progress"),
-        fetch("https://skill-scheduler.onrender.com/api/dashboard/dashboard"),
-        fetch("https://skill-scheduler.onrender.com/api/dashboard/upcoming-exams"),
-        fetch("https://skill-scheduler.onrender.com/api/dashboard/quiz-performance"),
+      const [dashboardRes, examsRes, quizPerformanceRes] = await Promise.all([
+        fetch(`${API_BASE}/api/dashboard/dashboard`),
+        fetch(`${API_BASE}/api/planner/exams`),
+        fetch(`${API_BASE}/api/dashboard/quiz-performance`),
       ]);
 
-      const progressData = await progressRes.json();
-      setProgress(progressData.completion || 0);
-      setStudyHours(progressData.studiedHours || 0);
-      setQuizProgress(progressData.quizProgress || 0);
+      if (!dashboardRes.ok) {
+        const text = await dashboardRes.text();
+        throw new Error(`Dashboard fetch failed: ${dashboardRes.status} ${text}`);
+      }
+      if (!examsRes.ok) {
+        const text = await examsRes.text();
+        throw new Error(`Exams fetch failed: ${examsRes.status} ${text}`);
+      }
+      if (!quizPerformanceRes.ok) {
+        const text = await quizPerformanceRes.text();
+        throw new Error(`Quiz performance fetch failed: ${quizPerformanceRes.status} ${text}`);
+      }
 
       const dashboardData = await dashboardRes.json();
       setNotes(dashboardData.notesOverview || []);
+      setStudyHours(dashboardData.studiedHours || 0);
+      setQuizProgress(dashboardData.quizProgress || 0);
+      setProgress(
+        typeof dashboardData.progressReport?.taskCompletionPercentage === "number"
+          ? dashboardData.progressReport.taskCompletionPercentage
+          : parseFloat(dashboardData.progressReport?.taskCompletionPercentage) || 0
+      );
 
       let examsData = await examsRes.json();
       examsData = examsData.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -38,7 +54,10 @@ const Dashboard = () => {
       setQuizHistory(quizPerformanceData.history || []);
 
       localStorage.setItem("quizHistory", JSON.stringify(quizPerformanceData.history || []));
-      localStorage.setItem("quizProgress", quizPerformanceData.stats?.accuracy || progressData.quizProgress || 0);
+      localStorage.setItem(
+        "quizProgress",
+        quizPerformanceData.stats?.accuracy || dashboardData.quizProgress || 0
+      );
 
       setLastUpdate(new Date());
     } catch (error) {
